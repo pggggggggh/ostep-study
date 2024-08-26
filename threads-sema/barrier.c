@@ -13,7 +13,10 @@
 // other integers to track things.
 
 typedef struct __barrier_t {
-    // add semaphores and other information here
+    int num_finished;
+    int num_threads;
+    sem_t mutex;
+    sem_t s;
 } barrier_t;
 
 
@@ -21,11 +24,20 @@ typedef struct __barrier_t {
 barrier_t b;
 
 void barrier_init(barrier_t *b, int num_threads) {
-    // initialization code goes here
+    b->num_finished = 0;
+    b->num_threads = num_threads;
+    sem_init(&b->mutex, 0, 1);
+    sem_init(&b->s, 0, 0);
 }
 
 void barrier(barrier_t *b) {
-    // barrier code goes here
+    sem_wait(&b->mutex);
+    if (++b->num_finished == b->num_threads) {
+        sem_post(&b->s);
+    }
+    sem_post(&b->mutex);
+    sem_wait(&b->s);
+    sem_post(&b->s);
 }
 
 //
@@ -56,15 +68,15 @@ int main(int argc, char *argv[]) {
 
     printf("parent: begin\n");
     barrier_init(&b, num_threads);
-    
+
     int i;
     for (i = 0; i < num_threads; i++) {
-	t[i].thread_id = i;
-	Pthread_create(&p[i], NULL, child, &t[i]);
+        t[i].thread_id = i;
+        Pthread_create(&p[i], NULL, child, &t[i]);
     }
 
-    for (i = 0; i < num_threads; i++) 
-	Pthread_join(p[i], NULL);
+    for (i = 0; i < num_threads; i++)
+        Pthread_join(p[i], NULL);
 
     printf("parent: end\n");
     return 0;
