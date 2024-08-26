@@ -8,22 +8,42 @@
 //
 
 typedef struct __rwlock_t {
+	sem_t mutex;
+	sem_t writelock;
+	sem_t readlock; // block readers when there is a waiting writer
+	int readers;
 } rwlock_t;
 
 
 void rwlock_init(rwlock_t *rw) {
+	sem_init(&rw->mutex, 0, 1);
+	sem_init(&rw->writelock, 0, 1);
+	sem_init(&rw->readlock, 0, 1);
+	rw->readers = 0;
 }
 
 void rwlock_acquire_readlock(rwlock_t *rw) {
+	sem_wait(&rw->readlock);
+	sem_post(&rw->readlock);
+	sem_wait(&rw->mutex);
+	if (++rw->readers == 1) sem_wait(&rw->writelock);
+	sem_post(&rw->mutex);
 }
 
 void rwlock_release_readlock(rwlock_t *rw) {
+	sem_wait(&rw->mutex);
+	if (--rw->readers == 0) sem_post(&rw->writelock);
+	sem_post(&rw->mutex);
 }
 
 void rwlock_acquire_writelock(rwlock_t *rw) {
+	sem_wait(&rw->readlock);
+	sem_wait(&rw->writelock);
 }
 
 void rwlock_release_writelock(rwlock_t *rw) {
+	sem_post(&rw->readlock);
+	sem_post(&rw->writelock);
 }
 
 //
@@ -36,51 +56,51 @@ int value = 0;
 rwlock_t lock;
 
 void *reader(void *arg) {
-    int i;
-    for (i = 0; i < loops; i++) {
-	rwlock_acquire_readlock(&lock);
-	printf("read %d\n", value);
-	rwlock_release_readlock(&lock);
-    }
-    return NULL;
+	int i;
+	for (i = 0; i < loops; i++) {
+		rwlock_acquire_readlock(&lock);
+		printf("read %d\n", value);
+		rwlock_release_readlock(&lock);
+	}
+	return NULL;
 }
 
 void *writer(void *arg) {
-    int i;
-    for (i = 0; i < loops; i++) {
-	rwlock_acquire_writelock(&lock);
-	value++;
-	printf("write %d\n", value);
-	rwlock_release_writelock(&lock);
-    }
-    return NULL;
+	int i;
+	for (i = 0; i < loops; i++) {
+		rwlock_acquire_writelock(&lock);
+		value++;
+		printf("write %d\n", value);
+		rwlock_release_writelock(&lock);
+	}
+	return NULL;
 }
 
 int main(int argc, char *argv[]) {
-    assert(argc == 4);
-    int num_readers = atoi(argv[1]);
-    int num_writers = atoi(argv[2]);
-    loops = atoi(argv[3]);
+	assert(argc == 4);
+	int num_readers = atoi(argv[1]);
+	int num_writers = atoi(argv[2]);
+	loops = atoi(argv[3]);
 
-    pthread_t pr[num_readers], pw[num_writers];
+	pthread_t pr[num_readers], pw[num_writers];
 
-    rwlock_init(&lock);
+	rwlock_init(&lock);
 
-    printf("begin\n");
+	printf("begin\n");
 
-    int i;
-    for (i = 0; i < num_readers; i++)
-	Pthread_create(&pr[i], NULL, reader, NULL);
-    for (i = 0; i < num_writers; i++)
-	Pthread_create(&pw[i], NULL, writer, NULL);
+	int i;
+	for (i = 0; i < num_readers; i++)
+		Pthread_create(&pr[i], NULL, reader, NULL);
+	for (i = 0; i < num_writers; i++)
+		Pthread_create(&pw[i], NULL, writer, NULL);
 
-    for (i = 0; i < num_readers; i++)
-	Pthread_join(pr[i], NULL);
-    for (i = 0; i < num_writers; i++)
-	Pthread_join(pw[i], NULL);
+	for (i = 0; i < num_readers; i++)
+		Pthread_join(pr[i], NULL);
+	for (i = 0; i < num_writers; i++)
+		Pthread_join(pw[i], NULL);
 
-    printf("end: value %d\n", value);
+	printf("end: value %d\n", value);
 
-    return 0;
+	return 0;
 }
 
