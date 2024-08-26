@@ -1,3 +1,5 @@
+// Counter designed for concurrency with approximation
+
 #include <assert.h>
 #include <stdio.h>
 #include <pthread.h>
