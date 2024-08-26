@@ -1,5 +1,3 @@
-// Counter designed for concurrency with approximation
-
 #include <assert.h>
 #include <stdio.h>
 #include <pthread.h>
@@ -7,6 +5,8 @@
 #include <malloc.h>
 #define NUMCPUS 5
 #define NUMTHREADS 50
+
+// Counter designed for concurrency with approximation
 
 typedef struct __counter_t {
     int global;
