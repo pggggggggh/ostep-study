@@ -33,11 +33,10 @@ void barrier_init(barrier_t *b, int num_threads) {
 void barrier(barrier_t *b) {
     sem_wait(&b->mutex);
     if (++b->num_finished == b->num_threads) {
-        sem_post(&b->s);
+        for (int i = 0; i < b->num_threads; i++)sem_post(&b->s);
     }
     sem_post(&b->mutex);
     sem_wait(&b->s);
-    sem_post(&b->s);
 }
 
 //
